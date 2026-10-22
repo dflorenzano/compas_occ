@@ -1251,10 +1251,12 @@ class OCCBrep(Brep):
             vertices = [point_to_compas(node) for node in nodes]
             faces = []
             triangles = triangulation.Triangles()
+            # the triangles follow the surface's parametrisation: on a reversed face they wind the other way
+            reversed = face.occ_face.Orientation() == TopAbs.TopAbs_REVERSED
             for i in range(1, triangulation.NbTriangles() + 1):
                 triangle = triangles.Value(i)
                 u, v, w = triangle.Get()
-                faces.append([u - 1, v - 1, w - 1])
+                faces.append([u - 1, w - 1, v - 1] if reversed else [u - 1, v - 1, w - 1])
             # this can be done much more efficiently
             other = Mesh.from_vertices_and_faces(vertices, faces)
             mesh.join(other)

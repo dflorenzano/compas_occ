@@ -5,6 +5,8 @@ from compas.geometry import Box
 from compas.geometry import Cylinder
 from compas.geometry import Frame
 from compas.geometry import Sphere
+from compas.geometry import cross_vectors
+from compas.geometry import dot_vectors
 from compas.tolerance import TOL
 from compas_occ.brep import OCCBrep
 
@@ -46,3 +48,22 @@ def test_brep_from_sphere():
 
     assert TOL.is_close(sphere.volume, brep.volume)
     assert sphere.frame.point == brep.centroid
+
+
+@pytest.mark.parametrize(
+    "brep",
+    [
+        OCCBrep.from_box(Box(2, 1, 1)),
+        OCCBrep.from_cylinder(Cylinder(radius=1, height=2)),
+        OCCBrep.from_box(Box(2, 1, 1)) - OCCBrep.from_box(Box(0.4, 0.4, 2)),
+    ],
+    ids=["box", "cylinder", "box with a hole"],
+)
+def test_tesselation_is_closed_and_outward(brep):
+    # reversed faces: their triangles must be flipped, or welding leaves open edges and inward faces
+    mesh = brep.to_tesselation()[0]
+    mesh.weld()
+    volume = sum(dot_vectors(a, cross_vectors(b, c)) for a, b, c in (mesh.face_coordinates(face) for face in mesh.faces())) / 6
+
+    assert mesh.is_closed()
+    assert volume == pytest.approx(brep.volume, rel=1e-2)
